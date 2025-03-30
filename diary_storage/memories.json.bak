@@ -1,0 +1,14 @@
+{
+  "entries": {},
+  "entities": {
+    "people": {},
+    "places": {},
+    "events": {},
+    "objects": {}
+  },
+  "indexes": {
+    "dates": {},
+    "topics": {},
+    "emotions": {}
+  }
+}

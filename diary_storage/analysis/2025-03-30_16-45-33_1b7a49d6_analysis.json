@@ -1,0 +1,88 @@
+{
+  "summary": "Durva recounts a day filled with fun, social tension, and personal reflection, highlighting the complexities of teenage friendships and family dynamics.",
+  "date": "2025-03-29",
+  "time_of_day": "evening",
+  "location": "Home and mall",
+  "topics": [
+    "Friendship Dynamics",
+    "Teen Life"
+  ],
+  "emotions": [
+    "frustration",
+    "excitement",
+    "sadness"
+  ],
+  "entities": {
+    "people": [
+      {
+        "name": "Mom",
+        "relationship": "Parent",
+        "context": "Expressed frustration about Durva sleeping in"
+      },
+      {
+        "name": "Dad",
+        "relationship": "Parent",
+        "context": "Asked about Durva's day"
+      },
+      {
+        "name": "Priya",
+        "relationship": "Friend",
+        "context": "Met at the mall, part of the fun outing"
+      },
+      {
+        "name": "Aadi",
+        "relationship": "Friend",
+        "context": "Met at the mall, part of the fun outing"
+      },
+      {
+        "name": "Riya",
+        "relationship": "Schoolmate",
+        "context": "Uncomfortable encounter at the mall"
+      }
+    ],
+    "places": [
+      {
+        "name": "Home",
+        "significance": "Where Durva starts and ends her day, interacts with family"
+      },
+      {
+        "name": "Mall",
+        "significance": "Location of the fun outing and awkward social encounter"
+      }
+    ],
+    "events": [
+      {
+        "name": "Mall outing with friends",
+        "significance": "Highlight of Durva's day, showcasing fun and social dynamics"
+      },
+      {
+        "name": "Awkward encounter with Riya",
+        "significance": "Marked the turning point of Durva's mood from happy to down"
+      }
+    ],
+    "objects": [
+      {
+        "name": "Iced coffee",
+        "significance": "Symbol of the fun outing with friends"
+      },
+      {
+        "name": "Sunglasses",
+        "significance": "Part of the fun activities at the mall"
+      },
+      {
+        "name": "Nail polish",
+        "significance": "Durva's attempt to distract herself from feeling down"
+      }
+    ]
+  },
+  "facts": [
+    "Durva stayed up late watching Stranger Things",
+    "Durva met Priya and Aadi at the mall",
+    "Durva ran into Riya, creating an awkward situation",
+    "Durva painted her nails sparkly blue"
+  ],
+  "reflections": [
+    "Durva felt down after the awkward encounter with Riya",
+    "Durva considered texting her friends to fix the social tension"
+  ]
+}

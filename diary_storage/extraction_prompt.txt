@@ -1,5 +1,5 @@
 Extract structured information from this diary entry. Focus on key memories, experiences, people, places, emotions, and events.
-Format your response STRICTLY as a valid JSON with the following structure:
+Format your response STRICTLY as a valid JSON with the following structure with NO additional text or explanation:
 {
   "summary": "Brief 1-2 sentence summary of the entry",
   "date": "YYYY-MM-DD",
@@ -16,4 +16,5 @@ Format your response STRICTLY as a valid JSON with the following structure:
   "facts": ["Important fact 1", "Important fact 2"],
   "reflections": ["Personal reflection/thought 1", "Personal reflection/thought 2"]
 }
-IMPORTANT: Output ONLY the JSON with no additional text, explanation, or formatting.
+
+Return ONLY pure JSON output without any markdown formatting, explanation, or additional text.

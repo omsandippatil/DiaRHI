@@ -1,7 +1,7 @@
 #!/bin/bash
 # Configuration
 GROQ_API_KEY="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"
-MODEL="llama3-70b-8192"
+MODEL="deepseek-r1-distill-qwen-32b"
 STORAGE_DIR="./diary_storage"
 DATA_FILE="$STORAGE_DIR/memories.json"
 LOG_FILE="$STORAGE_DIR/conversation_log.jsonl"
@@ -65,7 +65,7 @@ Format your response STRICTLY as a valid JSON with the following structure:
   "facts": ["Important fact 1", "Important fact 2"],
   "reflections": ["Personal reflection/thought 1", "Personal reflection/thought 2"]
 }
-IMPORTANT: Output ONLY the JSON with no additional text, explanation, or formatting.
+IMPORTANT: Output ONLY the JSON with no additional text, explanation, or formatting. Do not use markdown code blocks. Only return the raw JSON object.
 EOF
         echo "Created extraction prompt template: $PROMPT_FILE"
         echo "You can edit this file to customize the extraction process."
@@ -97,7 +97,7 @@ extract_structured_data() {
     local retry_count=0
     local response=""
     
-    # Create JSON payload
+    # Create JSON payload - modified to ensure raw JSON output
     local payload=$(jq -n \
         --arg model "$MODEL" \
         --arg system "$prompt" \
@@ -105,6 +105,7 @@ extract_structured_data() {
         '{
             "model": $model,
             "temperature": 0.3,
+            "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": $system},
                 {"role": "user", "content": $user}
@@ -120,22 +121,36 @@ extract_structured_data() {
         
         # Check if we got a valid response
         if echo "$response" | jq -e '.choices[0].message.content' &>/dev/null; then
-            local extraction=$(echo "$response" | jq -r '.choices[0].message.content')
+            # Extract just the content field containing our JSON
+            local raw_extraction=$(echo "$response" | jq -r '.choices[0].message.content')
             
-            # Clean up the extraction (remove markdown code blocks if present)
-            extraction=$(echo "$extraction" | sed 's/```json//g' | sed 's/```//g' | tr -d '\r')
+            # Ensure it's clean JSON with no extra formatting
+            local clean_extraction
             
-            # Validate JSON
-            if echo "$extraction" | jq empty &>/dev/null; then
-                # Save individual analysis to separate JSON file
-                echo "$extraction" > "$ANALYSIS_DIR/${ENTRY_ID}_analysis.json"
+            # Try to parse the extraction as JSON directly
+            if clean_extraction=$(echo "$raw_extraction" | jq '.' 2>/dev/null); then
+                # If successful, save the validated JSON
+                echo "$clean_extraction" > "$ANALYSIS_DIR/${ENTRY_ID}_analysis.json"
                 echo "Analysis saved to: $ANALYSIS_DIR/${ENTRY_ID}_analysis.json"
-                
-                echo "$extraction"
+                echo "$clean_extraction"
                 return 0
             else
-                echo "Invalid JSON returned from API:" >&2
-                echo "$extraction" >&2
+                echo "API returned invalid JSON format. Attempting to clean..." >&2
+                
+                # Try to clean up the extraction by removing markdown code blocks if present
+                # and any other non-JSON text
+                clean_extraction=$(echo "$raw_extraction" | sed -E 's/^```(json)?//g' | sed -E 's/```$//g' | tr -d '\r')
+                
+                # Validate the cleaned JSON
+                if echo "$clean_extraction" | jq '.' &>/dev/null; then
+                    echo "$clean_extraction" > "$ANALYSIS_DIR/${ENTRY_ID}_analysis.json"
+                    echo "Analysis saved after cleanup: $ANALYSIS_DIR/${ENTRY_ID}_analysis.json"
+                    echo "$clean_extraction"
+                    return 0
+                else
+                    echo "Failed to clean JSON response:" >&2
+                    echo "$raw_extraction" >&2
+                fi
             fi
         else
             echo "API call failed or returned invalid format." >&2
@@ -165,7 +180,7 @@ extract_structured_data() {
     return 1
 }
 
-# Update storage with new data
+# Update storage with new data - improved JSON handling
 update_storage() {
     local entry_text="$1"
     local extraction="$2"
@@ -176,8 +191,18 @@ update_storage() {
     # Log the raw conversation 
     echo "{\"id\":\"$ENTRY_ID\",\"timestamp\":\"$TIMESTAMP\",\"text\":$(escape_json "$entry_text")}" >> "$LOG_FILE"
     
-    # Update data file with extracted information using jq for handling complex nested JSON
-    jq --argjson extraction "$extraction" \
+    # First, validate the extraction is proper JSON before passing to jq
+    if ! echo "$extraction" | jq empty &>/dev/null; then
+        echo "Error: Invalid extraction JSON. Cannot update storage." >&2
+        cat "${DATA_FILE}.bak" > "$DATA_FILE"  # Restore backup
+        return 1
+    fi
+    
+    # Save extraction to temporary file to avoid command line size limitations and escaping issues
+    echo "$extraction" > "${STORAGE_DIR}/${ENTRY_ID}_temp.json"
+    
+    # Update data file using temporary file instead of passing JSON directly
+    jq --slurpfile extraction "${STORAGE_DIR}/${ENTRY_ID}_temp.json" \
        --arg entry_id "$ENTRY_ID" \
        --arg timestamp "$TIMESTAMP" \
        --arg date "$DATE" \
@@ -203,24 +228,24 @@ update_storage() {
             $b // $a
         end;
     
-    # Store the entry with its ID and full extraction data
-    .entries[$entry_id] = $extraction |
+    # Store the entry with its ID and full extraction data (using first item from slurpfile array)
+    .entries[$entry_id] = $extraction[0] |
     
     # Update date index
     .indexes.dates[$date] = (.indexes.dates[$date] // []) + [$entry_id] |
     
     # Update topic indexes
-    reduce ($extraction.topics[]? // empty) as $topic (.; 
+    reduce ($extraction[0].topics[]? // empty) as $topic (.; 
         .indexes.topics[$topic] = (.indexes.topics[$topic] // []) + [$entry_id]
     ) |
     
     # Update emotion indexes
-    reduce ($extraction.emotions[]? // empty) as $emotion (.; 
+    reduce ($extraction[0].emotions[]? // empty) as $emotion (.; 
         .indexes.emotions[$emotion] = (.indexes.emotions[$emotion] // []) + [$entry_id]
     ) |
     
     # Process people entities with complex data support
-    reduce ($extraction.entities.people[]? // empty) as $person (.;
+    reduce ($extraction[0].entities.people[]? // empty) as $person (.;
         .entities.people[$person.name] = deep_merge(
             .entities.people[$person.name] // {}; 
             {
@@ -243,7 +268,7 @@ update_storage() {
     ) |
     
     # Process place entities with complex data support
-    reduce ($extraction.entities.places[]? // empty) as $place (.;
+    reduce ($extraction[0].entities.places[]? // empty) as $place (.;
         .entities.places[$place.name] = deep_merge(
             .entities.places[$place.name] // {}; 
             {
@@ -265,7 +290,7 @@ update_storage() {
     ) |
     
     # Process event entities with complex data support
-    reduce ($extraction.entities.events[]? // empty) as $event (.;
+    reduce ($extraction[0].entities.events[]? // empty) as $event (.;
         .entities.events[$event.name] = deep_merge(
             .entities.events[$event.name] // {}; 
             {
@@ -287,7 +312,7 @@ update_storage() {
     ) |
     
     # Process object entities with complex data support
-    reduce ($extraction.entities.objects[]? // empty) as $object (.;
+    reduce ($extraction[0].entities.objects[]? // empty) as $object (.;
         .entities.objects[$object.name] = deep_merge(
             .entities.objects[$object.name] // {}; 
             {
@@ -315,16 +340,20 @@ update_storage() {
         if jq empty "$DATA_FILE.tmp" &>/dev/null; then
             mv "$DATA_FILE.tmp" "$DATA_FILE"
             echo "Diary entry stored successfully with ID: $ENTRY_ID"
-            rm "${DATA_FILE}.bak"
+            # Clean up temporary files
+            rm -f "${DATA_FILE}.bak"
+            rm -f "${STORAGE_DIR}/${ENTRY_ID}_temp.json"
         else
             echo "Error: Generated invalid JSON. Restoring backup." >&2
             mv "${DATA_FILE}.bak" "$DATA_FILE"
             rm -f "$DATA_FILE.tmp"
+            rm -f "${STORAGE_DIR}/${ENTRY_ID}_temp.json"
         fi
     else
         echo "Error: Failed to update data file. Restoring backup." >&2
         mv "${DATA_FILE}.bak" "$DATA_FILE"
         rm -f "$DATA_FILE.tmp"
+        rm -f "${STORAGE_DIR}/${ENTRY_ID}_temp.json"
     fi
 }
 
