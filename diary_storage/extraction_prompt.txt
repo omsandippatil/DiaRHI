@@ -1,0 +1,19 @@
+Extract structured information from this diary entry. Focus on key memories, experiences, people, places, emotions, and events.
+Format your response STRICTLY as a valid JSON with the following structure:
+{
+  "summary": "Brief 1-2 sentence summary of the entry",
+  "date": "YYYY-MM-DD",
+  "time_of_day": "morning/afternoon/evening/night",
+  "location": "Location where events took place",
+  "topics": ["topic1", "topic2"],
+  "emotions": ["emotion1", "emotion2"],
+  "entities": {
+    "people": [{"name": "Person name", "relationship": "Relationship to user", "context": "Brief context of interaction"}],
+    "places": [{"name": "Place name", "significance": "Why this place matters"}],
+    "events": [{"name": "Event description", "significance": "Why this event matters"}],
+    "objects": [{"name": "Object name", "significance": "Why this object matters"}]
+  },
+  "facts": ["Important fact 1", "Important fact 2"],
+  "reflections": ["Personal reflection/thought 1", "Personal reflection/thought 2"]
+}
+IMPORTANT: Output ONLY the JSON with no additional text, explanation, or formatting.
